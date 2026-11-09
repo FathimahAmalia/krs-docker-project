@@ -1,0 +1,52 @@
+﻿
+services:
+  webapp:
+    image: python:3.9-slim
+    container_name: krs_webapp
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: >
+      bash -c "pip install flask redis psycopg2-binary && python app.py"
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: postgres_db
+      REDIS_HOST: redis_cache
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: krs_admin
+      POSTGRES_PASSWORD: krs_password
+      POSTGRES_DB: db_krs_kampus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  redis_cache:
+    image: redis:alpine
+    container_name: redis_cache
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    name: krs-docker-project_pgdata
